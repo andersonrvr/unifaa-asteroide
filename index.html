@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Desvio de Asteroides</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #000;
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+
+    #gameContainer {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #gameArea {
+      width: 600px;
+      height: 400px;
+      background-color: #000;
+      position: relative;
+      border: 3px solid #444;
+      overflow: hidden;
+    }
+
+    #player {
+      width: 50px;
+      height: 30px;
+      position: absolute;
+      z-index: 10;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .obstacle {
+      width: 40px;
+      height: 40px;
+      position: absolute;
+      background-image: url('./asteroid-icon.png');
+      background-size: cover;
+      border-radius: 50%;
+    }
+
+    #scoreDisplay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 20px;
+      color: white;
+    }
+
+    #startScreen,
+    #gameOverScreen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: rgba(0, 0, 0, 0.7);
+      z-index: 20;
+    }
+
+    #gameOverScreen {
+      display: none;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 18px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 20px;
+      border-radius: 5px;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    h1 {
+      color: #FFD700;
+      margin-bottom: 10px;
+    }
+
+    .stars {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      background-color: white;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="gameContainer">
+    <div id="gameArea">
+      <div id="player">
+        <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+          viewBox="0 0 512.003 512.003" xml:space="preserve" fill="#000000">
+          <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+          <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+          <g id="SVGRepo_iconCarrier">
+            <g>
+              <rect x="200.177" y="454.915" style="fill:#5BACF5;" width="38.945" height="57.089"></rect>
+              <rect x="272.881" y="454.915" style="fill:#5BACF5;" width="38.945" height="57.089"></rect>
+            </g>
+            <path style="fill:#E42105;"
+              d="M424.164,370.034c-1.121-9.215-8.422-20.938-16.166-26.058l-78.021-51.579H182.026l-78.021,51.579 c-7.744,5.12-15.045,16.843-16.166,26.058c-2.922,24.025-11.418,96.129-11.418,96.129h106.281l72.336-22.506l74.263,22.506h106.281 C435.582,466.164,427.086,394.059,424.164,370.034z">
+            </path>
+            <path style="fill:#FFB367;"
+              d="M329.301,144.268c0-59.264-28.873-111.765-73.299-144.268 c-44.426,32.504-73.298,85.004-73.298,144.268v288.137l73.299,22.505l73.299-22.505V144.268H329.301z">
+            </path>
+            <rect x="182.701" y="432.409" style="fill:#3D51CC;" width="146.601" height="33.758"></rect>
+            <path style="fill:#FF7039;"
+              d="M216.462,144.268h79.081c0-13.441-1.905-26.686-5.518-39.385h-68.045 C218.367,117.582,216.462,130.827,216.462,144.268z">
+            </path>
+          </g>
+        </svg>
+      </div>
+      <div id="scoreDisplay">Pontuação: 0</div>
+
+      <div id="startScreen">
+        <h1>DESVIO DE ASTEROIDES</h1>
+        <p>Use as setas do teclado para desviar dos asteroides</p>
+        <button id="startButton">INICIAR JOGO</button>
+      </div>
+
+      <div id="gameOverScreen">
+        <h1>FIM DE JOGO</h1>
+        <p id="finalScore">Pontuação: 0</p>
+        <button id="restartButton">JOGAR NOVAMENTE</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const gameArea = document.getElementById('gameArea');
+      const player = document.getElementById('player');
+      const scoreDisplay = document.getElementById('scoreDisplay');
+      const startScreen = document.getElementById('startScreen');
+      const gameOverScreen = document.getElementById('gameOverScreen');
+      const startButton = document.getElementById('startButton');
+      const restartButton = document.getElementById('restartButton');
+      const finalScore = document.getElementById('finalScore');
+
+      let gameRunning = false;
+      let score = 0;
+      let playerX = 275;
+      let playerY = 350;
+      let playerSpeed = 5;
+      let obstacles = [];
+      let obstacleInterval;
+      let animationFrame;
+      let keys = {
+        ArrowUp: false,
+        ArrowDown: false,
+        ArrowLeft: false,
+        ArrowRight: false
+      };
+
+      const playerWidth = 50;
+      const playerHeight = 30;
+      const gameWidth = 600;
+      const gameHeight = 400;
+
+      function createStars() {
+        for (let i = 0; i < 100; i++) {
+          const star = document.createElement('div');
+          star.classList.add('stars');
+          star.style.left = Math.random() * gameWidth + 'px';
+          star.style.top = Math.random() * gameHeight + 'px';
+          star.style.width = (Math.random() * 2) + 'px';
+          star.style.height = (Math.random() * 2) + 'px';
+          gameArea.appendChild(star);
+        }
+      }
+
+      function initPlayer() {
+        playerX = 275;
+        playerY = 350;
+        player.style.left = playerX + 'px';
+        player.style.top = playerY + 'px';
+      }
+
+      function createObstacle() {
+        const obstacle = document.createElement('div');
+        obstacle.classList.add('obstacle');
+
+        const x = Math.floor(Math.random() * (gameWidth - 40));
+        const y = -40;
+
+        obstacle.style.left = x + 'px';
+        obstacle.style.top = y + 'px';
+
+        const speed = Math.random() * 2 + 2;
+
+        obstacle.dataset.speed = speed;
+
+        gameArea.appendChild(obstacle);
+        obstacles.push(obstacle);
+      }
+
+      function moveObstacles() {
+        for (let i = 0; i < obstacles.length; i++) {
+          const obstacle = obstacles[i];
+          const speed = parseFloat(obstacle.dataset.speed);
+          const y = parseFloat(obstacle.style.top) + speed;
+
+          obstacle.style.top = y + 'px';
+
+          if (y > gameHeight) {
+            obstacle.remove();
+            obstacles.splice(i, 1);
+            i--;
+            score++;
+            scoreDisplay.textContent = 'Pontuação: ' + score;
+          }
+        }
+      }
+
+      function updatePlayerPosition() {
+        if (keys.ArrowLeft && playerX > 0) {
+          playerX -= playerSpeed;
+        }
+        if (keys.ArrowRight && playerX < gameWidth - playerWidth) {
+          playerX += playerSpeed;
+        }
+        if (keys.ArrowUp && playerY > 0) {
+          playerY -= playerSpeed;
+        }
+        if (keys.ArrowDown && playerY < gameHeight - playerHeight) {
+          playerY += playerSpeed;
+        }
+
+        player.style.left = playerX + 'px';
+        player.style.top = playerY + 'px';
+      }
+
+      function checkCollisions() {
+        const playerRect = player.getBoundingClientRect();
+
+        for (let obstacle of obstacles) {
+          const obstacleRect = obstacle.getBoundingClientRect();
+
+          if (
+            playerRect.left < obstacleRect.right &&
+            playerRect.right > obstacleRect.left &&
+            playerRect.top < obstacleRect.bottom &&
+            playerRect.bottom > obstacleRect.top
+          ) {
+            endGame();
+            return;
+          }
+        }
+      }
+
+      function gameLoop() {
+        if (!gameRunning) return;
+
+        updatePlayerPosition();
+        moveObstacles();
+        checkCollisions();
+
+        animationFrame = requestAnimationFrame(gameLoop);
+      }
+
+      function startGame() {
+        score = 0;
+        scoreDisplay.textContent = 'Pontuação: 0';
+
+        obstacles.forEach(obstacle => obstacle.remove());
+        obstacles = [];
+
+        gameRunning = true;
+        startScreen.style.display = 'none';
+        gameOverScreen.style.display = 'none';
+
+        initPlayer();
+
+        obstacleInterval = setInterval(createObstacle, 1000);
+
+        gameLoop();
+      }
+
+      function endGame() {
+        gameRunning = false;
+        clearInterval(obstacleInterval);
+        cancelAnimationFrame(animationFrame);
+
+        finalScore.textContent = 'Pontuação: ' + score;
+        gameOverScreen.style.display = 'flex';
+      }
+
+      document.addEventListener('keydown', function (e) {
+        if (keys.hasOwnProperty(e.key)) {
+          keys[e.key] = true;
+        }
+      });
+
+      document.addEventListener('keyup', function (e) {
+        if (keys.hasOwnProperty(e.key)) {
+          keys[e.key] = false;
+        }
+      });
+
+      startButton.addEventListener('click', startGame);
+      restartButton.addEventListener('click', startGame);
+
+      createStars();
+      initPlayer();
+    });
+  </script>
+</body>
+
+</html>
